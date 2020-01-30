@@ -1,0 +1,41 @@
+{% extends "main/base.html" %}
+
+{% block content %}
+
+<main role="main" class="container">
+  <div class="row justify-content-center"">
+    <div class="col-sm"></div>
+    <div class="col-sm">
+      <h1>Login</h1>
+    </div>
+    <div class="col-sm"></div>
+  </div>
+<br>
+<div class="row row justify-content-center">
+  <div class="col-sm"></div>
+  <div class="col-sm">
+      <form class="form-signin" action="" method="POST">
+        <div class="form-group">
+            {{ form.csrf_token }}
+            {{ form.email(class="form-control form-control", placeholder="Email")  }}
+            {% for error in form.email.errors %}
+              <div class="alert alert-danger" role="alert">{{ error }}</div>
+            {% endfor %}
+            <br>
+            {{ form.password(class="form-control form-control", placeholder="Password") }}
+            {% for error in form.password.errors %}
+              <div class="alert alert-danger" role="alert">{{ error }}</div>
+            {% endfor %}
+            <br>
+            {{ form.remember }} Remember me
+            <br><br>
+            {{ form.submit(class="btn btn btn-primary") }}
+        </div>
+      </form>
+      <a href="{{ url_for('main.index') }}">Forgot password?</a>
+  </div>
+  <div class="col-sm"></div>
+</div>
+</main>
+
+{% endblock %}

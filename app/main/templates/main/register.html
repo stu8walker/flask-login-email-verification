@@ -1,0 +1,57 @@
+{% extends "main/base.html" %}
+
+{% block content %}
+
+      <main role="main" class="container">
+        <div class="row justify-content-center"">
+          <div class="col-sm"></div>
+          <div class="col-sm">
+            <h1>Register</h1>
+          </div>
+          <div class="col-sm"></div>
+        </div>
+
+      <br>
+
+      <div class="row row justify-content-center">
+        <div class="col-sm"></div>
+        <div class="col-sm">
+            <form class="form-signin" action="" method="POST">
+              <div class="form-group">
+                  {{ form.csrf_token }}
+                  
+                  {{ form.first_name(class="form-control form-control", placeholder="First name")  }}
+                  {% for error in form.first_name.errors %}
+                    <div class="alert alert-danger" role="alert">{{ error }}</div>
+                  {% endfor %}
+                  <br>
+                  {{ form.surname(class="form-control form-control", placeholder="Surname") }}
+                  {% for error in form.surname.errors %}
+                    <div class="alert alert-danger" role="alert">{{ error }}</div>
+                  {% endfor %}
+                  <br>
+                  {{ form.email(class="form-control form-control", placeholder="Email")  }}
+                  {% for error in form.email.errors %}
+                    <div class="alert alert-danger" role="alert">{{ error }}</div>
+                  {% endfor %}
+                  <br>
+                  {{ form.password(class="form-control form-control", placeholder="Password") }}
+                  {% for error in form.password.errors %}
+                    <div class="alert alert-danger" role="alert">{{ error }}</div>
+                  {% endfor %}
+                  <br>
+                  {{ form.password2(class="form-control form-control", placeholder="Repeat password") }}
+                  {% for error in form.password2.errors %}
+                    <div class="alert alert-danger" role="alert">{{ error }}</div>
+                  {% endfor %}
+                  <br>
+                  {{ form.submit(class="btn btn btn-primary") }}
+              </div>
+            </form>
+            <a href="{{ url_for('main.login') }}">Already have an account? Log in here</a>
+        </div>
+        <div class="col-sm"></div>
+      </div>
+    </main>
+
+{% endblock %}

@@ -3,6 +3,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_wtf import CSRFProtect
 from config import Config
 
 db = SQLAlchemy()
@@ -10,6 +11,8 @@ migrate = Migrate()
 login = LoginManager()
 login.login_view = 'main.login'
 #login.login_message = 'Please log in to access this page.'
+# CSRF enabled globally
+csrf = CSRFProtect()
 
 
 def create_app(config_class=Config):
@@ -20,6 +23,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     login.init_app(app)
+    csrf.init_app(app)
     
     # Import blueprint from routes.py
     from app.main import bp
