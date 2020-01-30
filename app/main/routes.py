@@ -1,12 +1,15 @@
 from app.main import bp
 from flask import render_template, flash, redirect, url_for, request, g, \
     jsonify, current_app
-from flask_login import current_user, login_required
+from flask_login import current_user, login_required, login_user, logout_user
 from app import db
+from app.models import User
 from app.forms import RegisterForm, LoginForm
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.urls import url_parse
 import datetime
+from app.email_token import generate_confirmation_token, confirm_token
+import sys # for printing to console
 
 
 @bp.route('/', methods=['GET'])
@@ -28,7 +31,13 @@ def login():
         # Any argument not for site should be redirected
         # e.g. 127.0.0.1:5000/login?next=http://some-malicious-site.com
         
-        if not next_page or url_parse(next_page).netloc != '':
+        # If users email address is not confirmed, flash message / limit access
+        if not user.email_confirmed:
+            flash('Please verify your email address to access.', 'danger')
+            if not next_page or url_parse(next_page).netloc != '':
+                next_page = url_for('main.dashboard')
+            return redirect(next_page)
+        elif not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('main.dashboard')
         return redirect(next_page)
     return render_template('main/login.html', form=form)
@@ -45,16 +54,40 @@ def register():
                             registered_date=datetime.datetime.now(), email_confirmed=False)                   
             db.session.add(new_user)
             db.session.commit()
+            
+            token = generate_confirmation_token(new_user.email)
+            print('url token : ' + 'http://127.0.0.1:5000/confirm/' + token, file=sys.stdout)
+            
             flash('Your new account has been created! Time to login.', 'success')
             return redirect(url_for('main.login'))
         flash('Email address is already registered with an account.', 'danger')
         return redirect(url_for('main.register'))
     return render_template('main/register.html', form=form)
 
+@bp.route('/confirm/<token>')
+# @login_required
+def confirm_email(token):
+    try:
+        print('token : ' + token, file=sys.stdout )
+        email = confirm_token(token)
+        print('email : ' + email, file=sys.stdout)
+    except:
+        flash('The confirmation link is invalid or has expired.', 'danger')
+    user = User.query.filter_by(email=email).first_or_404()
+    if user.email_confirmed:
+        flash('Account already confirmed. Please login.', 'success')
+    else:
+        user.email_confirmed = True
+        user.email_confirmed_date = datetime.datetime.now()
+        db.session.add(user)
+        db.session.commit()
+        flash('You have confirmed your account. Thanks!', 'success')
+    return redirect(url_for('main.login'))
+
 @bp.route('/dashboard', methods=['GET'])
 @login_required
 def dashboard():
-    return render_template('dashboard.html', user=current_user.first_name)
+    return render_template('main/dashboard.html', user=current_user.first_name)
 
 @bp.route('/logout', methods=['GET'])
 def logout():
