@@ -28,17 +28,13 @@ def create_app(config_class=Config):
     mail.init_app(app)
     csrf.init_app(app)
     
-    # Import blueprint from routes.py
-    from app.main import bp
-    app.register_blueprint(bp)
-    
-    # Example of testing to see if running in dev environment
-    #if app.env == 'development':
-    #    app.logger.info('Development Environment!') 
-    
-    # Further configure app. settings here
-    
-    return app
+    with app.app_context():
+        
+        # Blueprints
+        from app.main import bp
+        app.register_blueprint(bp)
+        
+        return app
 
 
 # Import goes after app creation to avoid circular imports
