@@ -79,11 +79,10 @@ def register():
 # @login_required
 def confirm_email(token):
     try:
-        print('token : ' + token, file=sys.stdout )
         email = confirm_token(token)
-        print('email : ' + email, file=sys.stdout)
     except:
         flash('The confirmation link is invalid or has expired.', 'danger')
+        
     user = User.query.filter_by(email=email).first_or_404()
     if user.email_confirmed:
         flash('Account already confirmed. Please login.', 'success')
@@ -93,7 +92,10 @@ def confirm_email(token):
         db.session.add(user)
         db.session.commit()
         flash('You have confirmed your account. Thanks!', 'success')
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
     return redirect(url_for('main.login'))
+    
 
 @bp.route('/dashboard', methods=['GET'])
 @login_required
@@ -120,6 +122,19 @@ def reset_password_request():
             return redirect(url_for('main.login'))
         flash('If we have an account for the email provided, we will email you a reset link.', 'success')
     return render_template('main/reset_password_request.html', form=form)     
+
+@bp.route('/resend_email_verification')
+@login_required
+def resend_email_verification():
+    if not current_user.email_confirmed:
+        token = generate_confirmation_token(current_user.email)
+        confirm_url = url_for('main.confirm_email', token=token, _external=True)
+        html = render_template('main/registration_confirm_email.html', confirm_url=confirm_url)
+        subject = "Please confirm your email"
+        send_email(current_user.email, subject, html)
+        flash('A new confirmation email has been sent.', 'success')
+        return redirect(url_for('main.unconfirmed'))
+    return redirect(url_for('main.dashboard'))
 
 @bp.route('/unconfirmed')
 @login_required
