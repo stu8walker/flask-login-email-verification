@@ -53,11 +53,14 @@
                 </li>
                 </ul>
                 <ul class="nav navbar-nav navbar-right">
-                {% if not current_user.is_authenticated %}
+                {% if current_user.confirmed and current_user.is_authenticated %}
+                    <li><a class="nav-link" href="{{ url_for('main.logout') }}">Logout<span class="sr-only">(current)</span></a></li>
+                {% elif current_user.is_authenticated %}
+                    <li><a class="nav-link" href="{{ url_for('main.unconfirmed') }}">Confirm Account</a></li>    
+                    <li><a class="nav-link" href="{{ url_for('main.logout') }}">Logout<span class="sr-only">(current)</span></a></li>
+                {% else %}
                     <li><a class="nav-link" href="{{ url_for('main.register') }}">Register<span class="sr-only">(current)</span></a></li>
                     <li><a class="nav-link" href="{{ url_for('main.login') }}">Login<span class="sr-only">(current)</span></a></li>
-                {% else %}
-                    <li><a class="nav-link" href="{{ url_for('main.logout') }}">Logout<span class="sr-only">(current)</span></a></li>
                 {% endif %}
                 </ul>
             </div>
