@@ -4,7 +4,7 @@ from flask import render_template, flash, redirect, url_for, request, g, \
 from flask_login import current_user, login_required, login_user, logout_user
 from app import db
 from app.models import User
-from app.forms import RegisterForm, LoginForm
+from app.forms import RegisterForm, LoginForm, ResetPasswordRequestForm
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.urls import url_parse
 import datetime
@@ -93,3 +93,18 @@ def dashboard():
 def logout():
     logout_user()
     return redirect(url_for('main.index'))
+
+@bp.route('/reset_password_request', methods=['GET', 'POST'])
+def reset_password_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    form = ResetPasswordRequestForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            token = user.get_reset_password_token()
+            print('token: ' + token)
+            flash('If we have an account for the email provided, we will email you a reset link.', 'success')
+            return redirect(url_for('main.login'))
+        flash('If we have an account for the email provided, we will email you a reset link.', 'success')
+    return render_template('main/reset_password_request.html', form=form)      
