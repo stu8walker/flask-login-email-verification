@@ -9,6 +9,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.urls import url_parse
 import datetime
 from app.email_token import generate_confirmation_token, confirm_token
+from app.email import send_email
+from app.decorators import check_confirmed
 import sys # for printing to console
 
 
@@ -31,15 +33,21 @@ def login():
         # Any argument not for site should be redirected
         # e.g. 127.0.0.1:5000/login?next=http://some-malicious-site.com
         
-        # If users email address is not confirmed, flash message / limit access
+        if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('main.dashboard')
+        return redirect(next_page)
+        
+        """ Now handled through @check_confirm decorator on route
         if not user.email_confirmed:
             flash('Please verify your email address to access.', 'danger')
             if not next_page or url_parse(next_page).netloc != '':
-                next_page = url_for('main.dashboard')
+                next_page = url_for('main.unconfirmed')
             return redirect(next_page)
         elif not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('main.dashboard')
         return redirect(next_page)
+        """
+         
     return render_template('main/login.html', form=form)
 
 @bp.route('/register', methods=['GET', 'POST'])
@@ -49,16 +57,19 @@ def register():
         hashed_password = generate_password_hash(form.password.data, method='sha256')
         # Check if email address is already registered
         if not User.query.filter_by(email = form.email.data).first():
-            new_user = User(first_name = form.first_name.data, surname = form.surname.data, 
+            user = User(first_name = form.first_name.data, surname = form.surname.data, 
                             email = form.email.data, password = hashed_password, 
                             registered_date=datetime.datetime.now(), email_confirmed=False)                   
-            db.session.add(new_user)
+            db.session.add(user)
             db.session.commit()
             
-            token = generate_confirmation_token(new_user.email)
-            print('url token : ' + 'http://127.0.0.1:5000/confirm/' + token, file=sys.stdout)
+            token = generate_confirmation_token(user.email)
+            confirm_url = url_for('main.confirm_email', token=token, _external=True)
+            html = render_template('main/registration_confirm_email.html', confirm_url=confirm_url)
+            subject = "Please confirm your email"
+            send_email(user.email, subject, html)
             
-            flash('Your new account has been created! Time to login.', 'success')
+            flash('Your new account has been created! Please check your email account to confirm your email address.', 'success')
             return redirect(url_for('main.login'))
         flash('Email address is already registered with an account.', 'danger')
         return redirect(url_for('main.register'))
@@ -86,6 +97,7 @@ def confirm_email(token):
 
 @bp.route('/dashboard', methods=['GET'])
 @login_required
+@check_confirmed
 def dashboard():
     return render_template('main/dashboard.html', user=current_user.first_name)
 
@@ -107,4 +119,12 @@ def reset_password_request():
             flash('If we have an account for the email provided, we will email you a reset link.', 'success')
             return redirect(url_for('main.login'))
         flash('If we have an account for the email provided, we will email you a reset link.', 'success')
-    return render_template('main/reset_password_request.html', form=form)      
+    return render_template('main/reset_password_request.html', form=form)     
+
+@bp.route('/unconfirmed')
+@login_required
+def unconfirmed(): 
+    if current_user.email_confirmed:
+        return redirect('main.dashboard')
+    #flash('Please confirm your email address.', 'warning')
+    return render_template('main/unconfirmed.html', user=current_user.first_name)
