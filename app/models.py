@@ -3,6 +3,7 @@ from flask import current_app
 from flask_login import UserMixin
 import jwt
 from time import time
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # Example model
 class User(UserMixin, db.Model):
@@ -14,6 +15,9 @@ class User(UserMixin, db.Model):
     registered_date = db.Column(db.DateTime, nullable=False) # need default?
     email_confirmed = db.Column(db.Boolean, nullable=False)
     email_confirmed_date = db.Column(db.DateTime, nullable=True)
+    
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
     
     def get_reset_password_token(self, expires_in=600):
         return jwt.encode(

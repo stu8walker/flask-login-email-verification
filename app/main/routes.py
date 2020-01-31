@@ -4,7 +4,7 @@ from flask import render_template, flash, redirect, url_for, request, g, \
 from flask_login import current_user, login_required, login_user, logout_user
 from app import db
 from app.models import User
-from app.forms import RegisterForm, LoginForm, ResetPasswordRequestForm
+from app.forms import RegisterForm, LoginForm, ResetPasswordRequestForm, PasswordResetForm
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.urls import url_parse
 import datetime
@@ -25,7 +25,7 @@ def login():
         user = User.query.filter_by(email = form.email.data).first()
         if user is None or not check_password_hash(user.password, form.password.data):
             flash('Your email or password is incorrect. Please try again', 'danger')
-            return redirect(url_for('login'))
+            return redirect(url_for('main.login'))
         login_user(user, remember=form.remember.data)
         next_page = request.args.get('next')
         
@@ -85,7 +85,7 @@ def confirm_email(token):
         
     user = User.query.filter_by(email=email).first_or_404()
     if user.email_confirmed:
-        flash('Account already confirmed. Please login.', 'success')
+        flash('Your email account is already confirmed.', 'success')
     else:
         user.email_confirmed = True
         user.email_confirmed_date = datetime.datetime.now()
@@ -117,12 +117,30 @@ def reset_password_request():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
             token = user.get_reset_password_token()
-            print('token: ' + token)
+            reset_url = url_for('main.reset_password', token=token, _external=True)
+            html = render_template('main/reset_password_email.html', reset_url=reset_url)
+            subject = "Password reset request for " + current_app.config['APP_NAME']
+            send_email(user.email, subject, html)
             flash('If we have an account for the email provided, we will email you a reset link.', 'success')
             return redirect(url_for('main.login'))
-        flash('If we have an account for the email provided, we will email you a reset link.', 'success')
+        flash('Account unknown.', 'warning')
     return render_template('main/reset_password_request.html', form=form)     
 
+@bp.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return render_template('main.dashboard')
+    user = User.verify_reset_password_token(token)
+    if not user:
+        return redirect(url_for('main.login'))
+    form = PasswordResetForm()
+    if form.validate_on_submit():
+        user.set_password(form.password.data)
+        db.session.commit()
+        flash('Your password has been reset', 'success')
+        return redirect(url_for('main.login'))
+    return render_template('main/reset_password.html', form=form)
+        
 @bp.route('/resend_email_verification')
 @login_required
 def resend_email_verification():
