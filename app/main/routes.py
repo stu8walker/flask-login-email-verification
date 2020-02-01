@@ -8,7 +8,6 @@ from app.forms import RegisterForm, LoginForm, ResetPasswordRequestForm, Passwor
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.urls import url_parse
 import datetime
-from app.email_token import generate_confirmation_token, confirm_token
 from app.email import send_email
 from app.decorators import check_confirmed
 import sys # for printing to console
@@ -63,8 +62,8 @@ def register():
             db.session.add(user)
             db.session.commit()
             
-            token = generate_confirmation_token(user.email)
-            confirm_url = url_for('main.confirm_email', token=token, _external=True)
+            token = user.generate_email_verification_token()
+            confirm_url = url_for('main.verify_email', token=token, _external=True)
             html = render_template('main/registration_confirm_email.html', confirm_url=confirm_url)
             subject = "Please confirm your email"
             send_email(user.email, subject, html)
@@ -74,28 +73,6 @@ def register():
         flash('Email address is already registered with an account.', 'danger')
         return redirect(url_for('main.register'))
     return render_template('main/register.html', form=form)
-
-@bp.route('/confirm/<token>')
-# @login_required
-def confirm_email(token):
-    try:
-        email = confirm_token(token)
-    except:
-        flash('The confirmation link is invalid or has expired.', 'danger')
-        
-    user = User.query.filter_by(email=email).first_or_404()
-    if user.email_confirmed:
-        flash('Your email account is already confirmed.', 'success')
-    else:
-        user.email_confirmed = True
-        user.email_confirmed_date = datetime.datetime.now()
-        db.session.add(user)
-        db.session.commit()
-        flash('You have confirmed your account. Thanks!', 'success')
-    if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
-    return redirect(url_for('main.login'))
-    
 
 @bp.route('/dashboard', methods=['GET'])
 @login_required
@@ -116,7 +93,7 @@ def reset_password_request():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
-            token = user.get_reset_password_token()
+            token = user.generate_reset_password_token()
             reset_url = url_for('main.reset_password', token=token, _external=True)
             html = render_template('main/reset_password_email.html', reset_url=reset_url)
             subject = "Password reset request for " + current_app.config['APP_NAME']
@@ -130,9 +107,12 @@ def reset_password_request():
 def reset_password(token):
     if current_user.is_authenticated:
         return render_template('main.dashboard')
-    user = User.verify_reset_password_token(token)
+    try:
+        user = User.verify_reset_password_token(token)
+    except:
+        flash('The confirmation link is invalid or has expired.', 'danger')
     if not user:
-        return redirect(url_for('main.login'))
+        flash('The confirmation link is invalid or has expired.', 'danger')
     form = PasswordResetForm()
     if form.validate_on_submit():
         user.set_password(form.password.data)
@@ -140,13 +120,35 @@ def reset_password(token):
         flash('Your password has been reset', 'success')
         return redirect(url_for('main.login'))
     return render_template('main/reset_password.html', form=form)
-        
+
+@bp.route('/verify_email/<token>', methods=['GET'])
+def verify_email(token):
+    try:
+        user = User.verify_email_verification_token(token)
+        if user is None:
+            return render_template('main/404.html'), 404
+    except:
+        flash('The confirmation link is invalid or has expired.', 'danger')
+    if not user:
+        flash('The confirmation link is invalid or has expired.', 'danger')
+    if user.email_confirmed:
+        flash('Your email account is already verified.', 'success')
+    else:
+        user.email_confirmed = True
+        user.email_confirmed_date = datetime.datetime.now()
+        db.session.add(user)
+        db.session.commit()
+        flash('You have confirmed your account. Thanks!', 'success')
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.login'))
+
 @bp.route('/resend_email_verification')
 @login_required
 def resend_email_verification():
     if not current_user.email_confirmed:
-        token = generate_confirmation_token(current_user.email)
-        confirm_url = url_for('main.confirm_email', token=token, _external=True)
+        token = current_user.generate_email_verification_token()
+        confirm_url = url_for('main.verify_email', token=token, _external=True)
         html = render_template('main/registration_confirm_email.html', confirm_url=confirm_url)
         subject = "Please confirm your email"
         send_email(current_user.email, subject, html)

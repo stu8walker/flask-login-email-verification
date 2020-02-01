@@ -1,5 +1,5 @@
 from app import db, login
-from flask import current_app
+from flask import current_app, redirect, flash
 from flask_login import UserMixin
 import jwt
 from time import time
@@ -17,9 +17,9 @@ class User(UserMixin, db.Model):
     email_confirmed_date = db.Column(db.DateTime, nullable=True)
     
     def set_password(self, password):
-        self.password = generate_password_hash(password)
+        self.password = generate_password_hash(password, method='sha256')
     
-    def get_reset_password_token(self, expires_in=600):
+    def generate_reset_password_token(self, expires_in=600):
         return jwt.encode(
             {'reset_password': self.id, 'exp': time() + expires_in},
             current_app.config['SECRET_KEY'],
@@ -33,6 +33,22 @@ class User(UserMixin, db.Model):
         except:
             return
         return User.query.get(id)
+    
+    def generate_email_verification_token(self, expires_in=600):
+        return jwt.encode(
+            {'verify_email': self.email, 'exp': time() + expires_in},
+            current_app.config['SECRET_KEY'],
+            algorithm='HS256').decode('utf-8')
+    
+    @staticmethod
+    def verify_email_verification_token(token):
+        try:
+            email = jwt.decode(token, current_app.config['SECRET_KEY'],
+                            algorithms=['HS256'])['verify_email']
+        except:
+            return
+        return User.query.filter_by(email = email).first()
+    
             
 @login.user_loader
 def load_user(user_id):
