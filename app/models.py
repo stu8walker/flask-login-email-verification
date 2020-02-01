@@ -4,6 +4,7 @@ from flask_login import UserMixin
 import jwt
 from time import time
 from werkzeug.security import generate_password_hash, check_password_hash
+import sys
 
 # Example model
 class User(UserMixin, db.Model):
@@ -30,7 +31,11 @@ class User(UserMixin, db.Model):
         try:
             id = jwt.decode(token, current_app.config['SECRET_KEY'],
                             algorithms=['HS256'])['reset_password']
-        except:
+        except jwt.ExpiredSignatureError:
+            # Signature has expired
+            print("Token has expired!", file=sys.stdout)
+            return
+        except:    
             return
         return User.query.get(id)
     
@@ -45,6 +50,10 @@ class User(UserMixin, db.Model):
         try:
             email = jwt.decode(token, current_app.config['SECRET_KEY'],
                             algorithms=['HS256'])['verify_email']
+        except jwt.ExpiredSignatureError:
+            # Signature has expired
+            print("Token has expired!", file=sys.stdout)
+            return
         except:
             return
         return User.query.filter_by(email = email).first()

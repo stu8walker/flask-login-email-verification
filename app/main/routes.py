@@ -109,6 +109,9 @@ def reset_password(token):
         return render_template('main.dashboard')
     try:
         user = User.verify_reset_password_token(token)
+        if user is None:
+            flash('The confirmation link is invalid or has expired.', 'danger')
+            return render_template('main/404.html'), 404
     except:
         flash('The confirmation link is invalid or has expired.', 'danger')
     if not user:
@@ -126,10 +129,9 @@ def verify_email(token):
     try:
         user = User.verify_email_verification_token(token)
         if user is None:
+            flash('The confirmation link is invalid or has expired.', 'danger')
             return render_template('main/404.html'), 404
     except:
-        flash('The confirmation link is invalid or has expired.', 'danger')
-    if not user:
         flash('The confirmation link is invalid or has expired.', 'danger')
     if user.email_confirmed:
         flash('Your email account is already verified.', 'success')
@@ -163,3 +165,8 @@ def unconfirmed():
         return redirect('main.dashboard')
     #flash('Please confirm your email address.', 'warning')
     return render_template('main/unconfirmed.html', user=current_user.first_name)
+
+# 404 for entire application
+@current_app.errorhandler(404)
+def page_not_found(e):
+    return render_template('main/404.html'), 404
